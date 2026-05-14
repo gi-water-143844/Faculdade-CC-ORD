@@ -60,6 +60,7 @@ def le_e_organiza_dados(flag: str):
         grava_secundario(publicadoras,arq_publicadoras)
         grava_lst_invertida(lst_invertida)
 
+        #tirar no final
         print(generos)
         print("\n", publicadoras)
         print("\n",lst_invertida)
@@ -226,15 +227,21 @@ def operacoes(flag: str, arq_operacoes: str):
                     id = int(info)
                     byoff = busca_primario(id, lista_ind_pri)
                     if byoff != None:
+                        pos_id, prox_gen, prox_pub = busca_lista_invertida(id, lista_invertida)
+                        ant_gen = busca_anterior(pos_id, lista_invertida, 1)
+                        ant_pub = busca_anterior(pos_id, lista_invertida, 2)
+                        organiza_indices(pos_id, ant_gen, ant_pub, prox_gen, prox_pub, lista_invertida,lista_generos, lista_publics, lista_ind_pri, id)
                         games.seek(byoff, os.SEEK_SET)
                         tamanho = int.from_bytes(games.read(2),'little')
                         remove = '*'
                         games.write(remove.encode())
                         print("\nRemoção do registro de id",id," offset =",byoff)
-                        #fazer remoção nos indices 
+                         
                     else:
                         print("\nRemoção do registro de id",id)
                         print("Registro não encontrado.")
+
+        #atualiza (regrava) os arquivos de índices
 
 def carrega_indices(ind_pri:list, generos:list, publicadoras:list, listaInvertida:list):
     with open('primario.ind','rb') as pri:
@@ -308,7 +315,6 @@ def busca_secundario(id_sec:str, lista_sec:list, lista_invertida:list, r:int) ->
 
     while primeiro<=ultimo and teste==False:
         meio = (ultimo+primeiro)//2
-
         if lista_sec[meio][0] == id_sec:
             primeira_pos = lista_sec[meio][1]
             teste = True
@@ -319,7 +325,6 @@ def busca_secundario(id_sec:str, lista_sec:list, lista_invertida:list, r:int) ->
         else:
             print("\nNenhum registro foi encontrado.")
             return []
-    
     primeiro_id = lista_invertida[primeira_pos][0]
     lista.append(primeiro_id)
     prox_pos = lista_invertida[primeira_pos][r]
@@ -330,7 +335,62 @@ def busca_secundario(id_sec:str, lista_sec:list, lista_invertida:list, r:int) ->
         prox_pos = lista_invertida[prox_pos][r]
     return lista
 
+def busca_lista_invertida(id:int, lista_invertida:list):
+    for i in range(len(lista_invertida)):
+        if lista_invertida[i][0] == id:
+            return i, lista_invertida[i][1], lista_invertida[i][2]
 
+def busca_anterior(pos_id:int, lista_invertida:list, r:int):
+    for i in range(len(lista_invertida)):
+        if lista_invertida[i][r] == pos_id:
+            return i
+    return None
+
+def organiza_indices(pos_id:int, ant_gen:int, ant_pub:int, prox_gen:int, prox_pub:int, lista_invertida:list,lista_generos:list, lista_publics:list, ind_pri:list, id:int):
+    if ant_gen == None:
+        if prox_gen != -1:
+            for g in lista_generos:
+                if g[1] == pos_id:
+                    g[1] = prox_gen
+        else:
+            for g in lista_generos:
+                if g[1] == pos_id:
+                    lista_generos.remove(g)
+    
+    if ant_pub == None:
+        if prox_pub != -1:
+            for p in lista_publics:
+                if p[1] == pos_id:
+                    p[1] = prox_pub
+        else:
+            for p in lista_publics:
+                if p[1] == pos_id:
+                    lista_publics.remove(p)
+    
+    if ant_gen != None:
+        if prox_gen != -1:
+            lista_invertida[ant_gen][1] = prox_gen
+        else:
+            lista_invertida[ant_gen][1] = -1
+    
+    if ant_pub != None:
+        if prox_pub != -1:
+            lista_invertida[ant_pub][2] = prox_pub
+        else:
+            lista_invertida[ant_pub][2] = -1
+
+    lista_invertida[pos_id][1] = None
+    lista_invertida[pos_id][2] = None
+
+    for i in ind_pri:
+        if i[0] == id:
+            ind_pri.remove(i)
+
+
+
+        
+
+#lembrar de recalcular os byte-offset         
 
 # def compactacao(flag: str):
 #     with open('games.dat','rb') as entrada:
