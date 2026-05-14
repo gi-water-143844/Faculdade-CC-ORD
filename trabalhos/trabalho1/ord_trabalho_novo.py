@@ -11,13 +11,13 @@ def main():
         raise TypeError("Número incorreto de argumentos\nModo de uso: 'programa.py -b' ou 'programa.py -e arquivo.txt'")
     flag = argv[1]
     if flag == "-b":
-        le_e_organiza_dados(flag)
+        le_e_organiza_dados()
     if flag == "-e":
-        operacoes(flag, argv[2])
-    # if flag == "-c":
-    #     compactacao(flag)
+        operacoes(argv[2])
+    if flag == "-c":
+        compactacao()
 
-def le_e_organiza_dados(flag: str):
+def le_e_organiza_dados():
     with open('games.dat','rb') as entrada:
         lst_invertida = []
         generos:list[str,int] = []
@@ -140,7 +140,7 @@ def grava_lst_invertida(lista: list):
 
             saida.write(pack(formato_lstInvertida,id,prox_gen,prox_pub))
 
-def operacoes(flag: str, arq_operacoes: str):
+def operacoes(arq_operacoes: str):
     with open('games.dat','r+b') as games:
         lista_ind_pri = []
         lista_generos = []
@@ -240,8 +240,10 @@ def operacoes(flag: str, arq_operacoes: str):
                     else:
                         print("\nRemoção do registro de id",id)
                         print("Registro não encontrado.")
-
-        #atualiza (regrava) os arquivos de índices
+            grava_primario(lista_ind_pri)
+            grava_secundario(lista_generos,'genero.ind')
+            grava_secundario(lista_publics, 'publicadora.ind') 
+            grava_lst_invertida(lista_invertida)
 
 def carrega_indices(ind_pri:list, generos:list, publicadoras:list, listaInvertida:list):
     with open('primario.ind','rb') as pri:
@@ -379,35 +381,49 @@ def organiza_indices(pos_id:int, ant_gen:int, ant_pub:int, prox_gen:int, prox_pu
         else:
             lista_invertida[ant_pub][2] = -1
 
-    lista_invertida[pos_id][1] = None
-    lista_invertida[pos_id][2] = None
+    lista_invertida[pos_id] = [id,-1,-1]
 
     for i in ind_pri:
         if i[0] == id:
             ind_pri.remove(i)
-
-
-
         
 
-#lembrar de recalcular os byte-offset         
+def compactacao():
+    with open('games.dat','rb') as entrada:
+        saida = open('games_novo.dat','wb')
+        tamanho = int.from_bytes(entrada.read(2),'little')
+        while tamanho != 0:
+            ponteiro = entrada.tell()
+            verifica = (entrada.read(1)).decode()
+            if verifica == '*':
+                entrada.seek(ponteiro)
+                entrada.read(tamanho)
+            else:
+                saida.write(tamanho.to_bytes(2,'little'))
+                entrada.seek(ponteiro)
+                saida.write(entrada.read(tamanho))
+            tamanho = int.from_bytes(entrada.read(2),'little')
+    saida.close()
 
-# def compactacao(flag: str):
-#     with open('games.dat','rb') as entrada:
-#         saida = open('games_novo.dat','wb')
-#         tamanho = int.from_bytes(entrada.read(2),'little')
-#         while tamanho != 0:
-#             ponteiro = entrada.tell()
-#             verifica = (entrada.read(1)).decode()
-#             if verifica == '*':
-#                 entrada.seek(ponteiro)
-#                 entrada.read(tamanho)
-#             else:
-#                 saida.write(tamanho.to_bytes(2,'little'))
-#                 entrada.seek(ponteiro)
-#                 saida.write(entrada.read(tamanho))
-#             tamanho = int.from_bytes(entrada.read(2),'little')
-#     saida.close()
+    with open('games_novo.dat','rb') as games:
+        lista_ind_pri = []
+        t = games.read(2)
+        t_int = int.from_bytes(t,'little')
+        byoff = 0
+        while(t_int != 0):
+            reg = games.read(t_int)
+            reg_str = reg.decode()
+            reg_lst = reg_str.split(sep='|')
+            id = int(reg_lst[0])
+            lista_ind_pri.append([id,byoff])
+            byoff += t_int + 2
+            games.seek(byoff, os.SEEK_SET)
+            t = games.read(2)
+            t_int = int.from_bytes(t,'little')
+        lista_ind_pri.sort()
+        grava_primario(lista_ind_pri)
+
+
 
 if __name__ == "__main__":
     main()
